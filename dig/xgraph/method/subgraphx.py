@@ -756,9 +756,13 @@ class SubgraphX(object):
     def explain(self, x: Tensor, edge_index: Tensor, label: int,
                 max_nodes: int = 5,
                 node_idx: Optional[int] = None,
-                saved_MCTSInfo_list: Optional[List[List]] = None):
-        probs = self.model(x, edge_index).squeeze().softmax(dim=-1)
+                saved_MCTSInfo_list: Optional[List[List]] = None,
+                forward_kwargs = {}):
+        probs = self.model(x, edge_index, **forward_kwargs).squeeze().softmax(dim=-1)
         if self.explain_graph:
+            # add on pos to x and then remove before putting in model
+            x = torch.cat([x, forward_kwargs["pos"]], dim=1)
+
             if saved_MCTSInfo_list:
                 results = self.read_from_MCTSInfo_list(saved_MCTSInfo_list)
 
@@ -823,7 +827,7 @@ class SubgraphX(object):
 
         return results, related_pred
 
-    def __call__(self, x: Tensor, edge_index: Tensor, **kwargs)\
+    def __call__(self, x: Tensor, edge_index: Tensor, forward_kwargs, **kwargs)\
             -> Tuple[None, List, List[Dict]]:
         r""" explain the GNN behavior for the graph using SubgraphX method
         Args:
@@ -831,6 +835,7 @@ class SubgraphX(object):
               :obj:`[num_nodes, dim_node_feature]`
             edge_index (:obj:`torch.Tensor`): Graph connectivity in COO format
               with shape :obj:`[2, num_edges]`
+            forward_kwargs (:obj:`Dict`): Parameters passed to model
             kwargs(:obj:`Dict`):
               The additional parameters
                 - node_idx (:obj:`int`, :obj:`None`): The target node index when explain node classification task
@@ -856,7 +861,8 @@ class SubgraphX(object):
                                                  label=label,
                                                  max_nodes=max_nodes,
                                                  node_idx=node_idx,
-                                                 saved_MCTSInfo_list=saved_results)
+                                                 saved_MCTSInfo_list=saved_results,
+                                                 forward_kwargs=forward_kwargs)
             related_preds.append(related_pred)
             explanation_results.append(results)
 

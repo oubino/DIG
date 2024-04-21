@@ -12,7 +12,16 @@ from torch_geometric.loader import DataLoader
 def GnnNetsGC2valueFunc(gnnNets, target_class):
     def value_func(batch):
         with torch.no_grad():
-            logits = gnnNets(data=batch)
+            if gnnNets.name == "ClusterNetHomogeneous":
+                x = batch.x[:,:-2]
+                pos = batch.x[:,-2:]
+                logits = gnnNets(x=x,
+                                 edge_index=batch.edge_index,
+                                 batch=batch.batch,
+                                 pos=pos,
+                                 logits=True)
+            else:
+                logits = gnnNets(data=batch)
             probs = F.softmax(logits, dim=-1)
             score = probs[:, target_class]
         return score
@@ -43,6 +52,7 @@ def get_graph_build_func(build_method):
 
 class MarginalSubgraphDataset(Dataset):
     def __init__(self, data, exclude_mask, include_mask, subgraph_build_func):
+        super().__init__()
         self.num_nodes = data.num_nodes
         self.X = data.x
         self.edge_index = data.edge_index
@@ -53,10 +63,10 @@ class MarginalSubgraphDataset(Dataset):
         self.include_mask = torch.tensor(include_mask).type(torch.float32).to(self.device)
         self.subgraph_build_func = subgraph_build_func
 
-    def __len__(self):
+    def len(self):
         return self.exclude_mask.shape[0]
 
-    def __getitem__(self, idx):
+    def get(self, idx):
         exclude_graph_X, exclude_graph_edge_index = self.subgraph_build_func(self.X, self.edge_index, self.exclude_mask[idx])
         include_graph_X, include_graph_edge_index = self.subgraph_build_func(self.X, self.edge_index, self.include_mask[idx])
         exclude_data = Data(x=exclude_graph_X, edge_index=exclude_graph_edge_index)
