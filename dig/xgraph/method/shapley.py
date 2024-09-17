@@ -12,7 +12,7 @@ from torch_geometric.loader import DataLoader
 def GnnNetsGC2valueFunc(gnnNets, target_class):
     def value_func(batch):
         with torch.no_grad():
-            if gnnNets.name == "ClusterNetHomogeneous":
+            if gnnNets.name == "ClusterNetHomogeneous" or gnnNets.name == "loconlynet":
                 x = batch.x[:,:-2]
                 pos = batch.x[:,-2:]
                 logits = gnnNets(x=x,
@@ -298,7 +298,7 @@ def sparsity(coalition: list, data: Data, subgraph_building_method='zero_filling
 
     elif subgraph_building_method == 'split':
         row, col = data.edge_index
-        node_mask = torch.zeros(data.x.shape[0])
+        node_mask = torch.zeros(data.x.shape[0], device=data.edge_index.device)
         node_mask[coalition] = 1.0
         edge_mask = (node_mask[row] == 1) & (node_mask[col] == 1)
         return 1.0 - (edge_mask.sum() / edge_mask.shape[0]).item()
